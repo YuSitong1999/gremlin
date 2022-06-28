@@ -1,0 +1,11 @@
+{
+  "log_server": "http://localhost:29200/",
+  "checks": [
+    {
+      "name": "bounded_response_time",
+      "source": "gateway",
+      "dest": "productpage",
+      "max_latency": "1000ms"
+    }
+  ]
+}
