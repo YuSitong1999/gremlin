@@ -1,14 +1,14 @@
 {
   "gremlins": [
     {
-      "scenario": "delay_requests",
+      "scenario": "abort_responses",
       "source": "productpage",
       "dest": "reviews",
       "headerpattern": "testUser-timeout-*",
       "bodypattern": "*",
-      "delayprobability": 1.0,
-      "delaydistribution": "uniform",
-      "delaytime": "1s"
+      "abortprobability": 1.0,
+      "abortdistribution": "uniform",
+      "errorcode": 503
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "gremlins": [
     {
-      "scenario": "delay_requests",
+      "scenario": "delay_responses",
       "source": "productpage",
       "dest": "reviews",
       "headerpattern": "testUser-timeout-*",
