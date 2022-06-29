@@ -1,0 +1,15 @@
+{
+  "gremlins": [
+    {
+      "scenario": "partition_services",
+      "source": "productpage",
+      "dest": "reviews",
+      "headerpattern": "testUser-retry-*",
+      "bodypattern": "*",
+      "srcprobability": 1.0,
+      "dstprobability": 1.0,
+      "abortdistribution": "uniform",
+      "errorcode": 404
+    }
+  ]
+}
