@@ -82,7 +82,7 @@ class ApplicationGraph(object):
         """
         dservices = []
         for e in self._graph.out_edges(service):
-            dservices.append(e[0])
+            dservices.append(e[1])
         return dservices
 
     def get_services(self):

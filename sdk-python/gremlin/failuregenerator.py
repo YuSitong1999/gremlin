@@ -75,8 +75,8 @@ class FailureGenerator(object):
                  delayprobability: float = 0.0, delaydistribution: str = "uniform", delaytime: str = "0s",
                  mangleprobability: float = 0.0, mangledistribution: str = "uniform",
                  searchstring: str = "", replacestring: str = "",
-                 abortprobability: float = 0.0, abortdistribution: str = "uniform", errorcode: int = -1
-                 ):
+                 abortprobability: float = 0.0, abortdistribution: str = "uniform", errorcode: int = -1,
+                 **unused):
         """增加规则
 
         Args:
