@@ -1,0 +1,12 @@
+{
+  "log_server": "http://localhost:29200/",
+  "checks": [
+    {
+      "name": "bounded_retries",
+      "source": "productpage",
+      "dest": "reviews",
+      "retries": 5,
+      "wait_time": "1s"
+    }
+  ]
+}

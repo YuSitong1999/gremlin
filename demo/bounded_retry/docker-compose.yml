@@ -1,0 +1,70 @@
+version: "3.7"
+services:
+  es:
+    image: elasticsearch:1.7
+#    image: elasticsearch:8.2.3
+    command: elasticsearch -Des.index.analysis.analyzer.default.type=keyword
+    ports:
+      - "29200:9200"
+      - "29300:9300"
+    tty: true
+
+  logstore.mybookstore.io:
+    image: logstash:2.0
+#    image: logstash:8.2.3
+    command: logstash -e " input {udp {codec=>json port=>8092}} output {elasticsearch {hosts=>es index=>gremlin}} "
+#    command: logstash -e " input {udp {host=>"0.0.0.0" codec=>json port=>8092 type=>"udp"}} output {elasticsearch {hosts=>["es:9200"] index=>\"gremlin\"}} "
+    ports:
+      - "8092:8092/udp"
+    links:
+      - es
+    depends_on:
+      - es
+    tty: true
+
+  gateway.mybookstore.io:
+    restart: always
+    build:
+      context: ./cluster/gateway/
+      dockerfile: Dockerfile
+    ports:
+      - "9877:9876"
+      - "9080:9080"
+    links:
+      - logstore.mybookstore.io
+      - productpage.mybookstore.io
+    depends_on:
+      - logstore.mybookstore.io
+      - productpage.mybookstore.io
+    tty: true
+
+  productpage.mybookstore.io:
+    restart: always
+    build:
+      context: ./cluster/productpage/ # Use an image built from the specified dockerfile in the current directory.
+      dockerfile: Dockerfile
+    ports:
+      - "9876:9876"
+    links:
+      - logstore.mybookstore.io
+      - details.mybookstore.io
+      - reviews.mybookstore.io
+    depends_on:
+      - logstore.mybookstore.io
+      - details.mybookstore.io
+      - reviews.mybookstore.io
+    tty: true
+
+  details.mybookstore.io:
+    restart: always
+    build:
+      context: ./cluster/details/
+      dockerfile: Dockerfile
+    tty: true
+
+  reviews.mybookstore.io:
+    restart: always
+    build:
+      context: ./cluster/reviews/
+      dockerfile: Dockerfile
+    tty: true
