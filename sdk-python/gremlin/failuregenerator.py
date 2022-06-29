@@ -289,11 +289,10 @@ class FailureGenerator(object):
         self.abort_requests(**rule)
 
     def crash_service(self, **args):
-        """导致dest服务对所有调用者不可用  Causes the dest service to become unavailable to all callers
-        FIXME 其实只是对目标调用者不可用?
-        """
+        """导致dest服务对所有调用者不可用  Causes the dest service to become unavailable to all callers"""
         rule = args.copy()
-        rule['source'] = ''
+        if 'source' in rule:
+            del rule['source']
         rule['errorcode'] = rule.pop('errorcode', -1) or -1
         self.abort_requests(**rule)
 

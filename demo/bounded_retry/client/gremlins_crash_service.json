@@ -1,0 +1,13 @@
+{
+  "gremlins": [
+    {
+      "scenario": "crash_service",
+      "dest": "reviews",
+      "headerpattern": "testUser-retry-*",
+      "bodypattern": "*",
+      "abortprobability": 1.0,
+      "abortdistribution": "uniform",
+      "errorcode": -1
+    }
+  ]
+}
