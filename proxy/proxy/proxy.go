@@ -502,15 +502,17 @@ func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response
 // AddRule adds a new rule to the proxy. All requests/replies carrying the trackingheader will be checked
 // against all rules, if something matches, the first matched rule will be executed
 func (p *Proxy) AddRule(r Rule) {
-	//TODO: check validity of regexes before installing a rule!
 	p.ruleLock.Lock()
+	defer p.ruleLock.Unlock()
+
 	p.rules[r.MType] = append(p.rules[r.MType], r)
-	p.ruleLock.Unlock()
 }
 
 // RemoveRule removes a rule from this proxy
 func (p *Proxy) RemoveRule(r Rule) bool {
-	p.ruleLock.RLock()
+	p.ruleLock.Lock()
+	defer p.ruleLock.Unlock()
+
 	n := len(p.rules[r.MType])
 	b := p.rules[r.MType][:0]
 	for _, x := range p.rules[r.MType] {
@@ -518,11 +520,7 @@ func (p *Proxy) RemoveRule(r Rule) bool {
 			b = append(b, x)
 		}
 	}
-	p.ruleLock.RUnlock()
-	// FIXME 并发Bug: 同时删除多个操作，部分删除会被覆盖
-	p.ruleLock.Lock()
 	p.rules[r.MType] = b
-	p.ruleLock.Unlock()
 	return len(p.rules[r.MType]) != n
 }
 
@@ -548,9 +546,10 @@ func (p *Proxy) SetInstances(hosts []string) {
 func (p *Proxy) Reset() {
 	// lock rules, clear, unlock
 	p.ruleLock.Lock()
+	defer p.ruleLock.Unlock()
+
 	p.rules = map[MessageType][]Rule{Request: {},
 		Response: {}}
-	p.ruleLock.Unlock()
 }
 
 func (p *Proxy) SetTestID(testID string) {
