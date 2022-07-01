@@ -134,9 +134,12 @@ func NewRule(c config.RuleConfig) (r Rule, err error) {
 	}
 
 	// 至少有一种故障
-	valid := r.DelayProbability > 0.0 || r.MangleProbability > 0.0 || r.AbortProbability > 0.0
-	if !valid {
-		return NopRule, errors.New("at least one of delay probability, mangle probability, abort probability must be non-zero and <=1.0")
+	if r.DelayProbability == 0.0 && r.MangleProbability == 0.0 && r.AbortProbability == 0.0 {
+		return NopRule, errors.New("at least one of delay probability, mangle probability and abort probability must be non-zero")
+	}
+	// 概率不相互独立，和小于1
+	if r.DelayProbability == 0.0 && r.MangleProbability == 0.0 && r.AbortProbability == 0.0 {
+		return NopRule, errors.New("the sum of delay probability, mangle probability and abort probability must be not more than one")
 	}
 
 	// 设置消息类型

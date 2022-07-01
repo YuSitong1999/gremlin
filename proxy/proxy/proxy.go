@@ -156,8 +156,7 @@ func (p *Proxy) proxyTCP(conn *net.TCPConn) {
 
 	// 随即决定执行延迟
 	//FIXME: Add proper delay support for TCP channels.
-	if (rule.DelayProbability > 0.0) &&
-		drawAndDecide(rule.DelayDistribution, rule.DelayProbability) {
+	if drawAndDecide(rule.DelayDistribution, 1.0, rule.DelayProbability) {
 		proxylog.WithFields(logrus.Fields{
 			"dest":     p.name,
 			"source":   config.ProxyFor,
@@ -171,8 +170,7 @@ func (p *Proxy) proxyTCP(conn *net.TCPConn) {
 	}
 
 	// 随即决定是否执行中断
-	if (rule.AbortProbability > 0.0) &&
-		drawAndDecide(rule.AbortDistribution, rule.AbortProbability) {
+	if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability, rule.AbortProbability) {
 		proxylog.WithFields(logrus.Fields{
 			"dest":     p.name,
 			"source":   config.ProxyFor,
@@ -416,12 +414,10 @@ func (p *Proxy) executeRequestRule(reqID string, rule Rule, req *http.Request, b
 	t := time.Now()
 
 	if rule.Enabled {
-		// FIXME 概率总和等于1，必然触发其中一个?
 		globallog.WithField("rule", rule.ToConfig()).Debug("execRequestRule")
 
 		// 注入延迟
-		if (rule.DelayProbability > 0.0) &&
-			drawAndDecide(rule.DelayDistribution, rule.DelayProbability) {
+		if drawAndDecide(rule.DelayDistribution, 1.0, rule.DelayProbability) {
 			globallog.Printf("executeRequestRule delay")
 			// In future, this could be dynamically computed -- variable delays
 			delay = rule.DelayTime
@@ -430,8 +426,7 @@ func (p *Proxy) executeRequestRule(reqID string, rule Rule, req *http.Request, b
 		}
 
 		// 注入中止
-		if (rule.AbortProbability > 0.0) &&
-			drawAndDecide(rule.AbortDistribution, rule.AbortProbability) &&
+		if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability, rule.AbortProbability) &&
 			p.doHTTPAborts(reqID, rule, w) {
 			globallog.Printf("executeRequestRule abort")
 			actions = append(actions, "abort")
@@ -467,9 +462,7 @@ func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response
 	t := time.Now()
 
 	if rule.Enabled {
-		// FIXME 概率总和等于1，必然触发其中一个?
-		if (rule.DelayProbability > 0.0) &&
-			drawAndDecide(rule.DelayDistribution, rule.DelayProbability) {
+		if drawAndDecide(rule.DelayDistribution, 1.0, rule.DelayProbability) {
 			globallog.Printf("executeResponseRule delay")
 			// In future, this could be dynamically computed -- variable delays
 			delay = rule.DelayTime
@@ -477,8 +470,7 @@ func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response
 			time.Sleep(rule.DelayTime)
 		}
 
-		if (rule.AbortProbability > 0.0) &&
-			drawAndDecide(rule.AbortDistribution, rule.AbortProbability) &&
+		if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability, rule.AbortProbability) &&
 			p.doHTTPAborts(reqID, rule, w) {
 			globallog.Printf("executeResponseRule abort")
 			actions = append(actions, "abort")
@@ -622,18 +614,16 @@ func decodeBody(raw []byte, ct string, ce string) ([]byte, error) {
 // drawAndDecide draws from a given distribution and compares (<) the result to a threshold.
 // This determines whether an action should be taken or not
 // 根据随机数的分布和概率进行随机，决定是否执行
-func drawAndDecide(distribution ProbabilityDistribution, probability float64) bool {
-	//	fmt.Printf("In draw and decide with dis %s, thresh %f", DistributionString(distribution), probability);
-
+func drawAndDecide(distribution ProbabilityDistribution, base float64, probability float64) bool {
 	switch distribution {
 	case ProbUniform:
-		return rand.Float64() < probability
+		return rand.Float64()*base < probability
 	case ProbExponential:
-		return rand.ExpFloat64() < probability
+		return rand.ExpFloat64()*base < probability
 	case ProbNormal:
-		return rand.NormFloat64() < probability
+		return rand.NormFloat64()*base < probability
 	default:
-		globallog.Warnf("Unknown probability distribution %d, defaulting to coin flip", distribution)
-		return rand.Float64() < .5
+		globallog.Errorf("Unknown probability distribution %d", distribution)
+		return false
 	}
 }
