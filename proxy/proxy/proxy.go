@@ -230,11 +230,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	reqID := req.Header.Get(config.TrackingHeader)
 	var rule Rule
 	var decodedData []byte
-	var cont bool
+	var continueFlag bool
 	data, err := readBody(req.Body)
 	if reqID != "" {
 		// Process the request, see if any rules match it.
-		decodedData, err := decodeBody(data, req.Header.Get("content-type"),
+		decodedData, err = decodeBody(data, req.Header.Get("content-type"),
 			req.Header.Get("content-encoding"))
 		if err != nil {
 			globallog.WithFields(logrus.Fields{
@@ -249,9 +249,19 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			// Get the rule
 			rule = p.getRule(Request, reqID, decodedData)
 		}
-		cont := p.executeRequestRule(reqID, rule, req, decodedData, w)
-		if !cont {
+
+		decodedData, continueFlag = p.executeRequestRule(reqID, rule, req, decodedData, w)
+		if !continueFlag {
 			return
+		}
+
+		data, err = encodeBody(decodedData, req.Header.Get("content-type"), req.Header.Get("content-encoding"))
+		if err != nil {
+			globallog.WithFields(logrus.Fields{
+				"service": p.name,
+				"reqID":   reqID,
+				"errmsg":  err.Error()}).Error("Error encodeBody")
+			rule = NopRule
 		}
 	}
 
@@ -327,9 +337,18 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			rule = p.getRule(Response, reqID, decodedData)
 		}
 
-		cont = p.executeResponseRule(reqID, rule, resp, decodedData, respTime, w)
-		if !cont {
+		decodedData, continueFlag = p.executeResponseRule(reqID, rule, resp, decodedData, respTime, w)
+		if !continueFlag {
 			return
+		}
+
+		data, err = encodeBody(decodedData, req.Header.Get("content-type"), req.Header.Get("content-encoding"))
+		if err != nil {
+			globallog.WithFields(logrus.Fields{
+				"service": p.name,
+				"reqID":   reqID,
+				"errmsg":  err.Error()}).Error("Error reply encodeBody")
+			rule = NopRule
 		}
 	}
 
@@ -406,8 +425,9 @@ func (p *Proxy) doHTTPAborts(reqID string, rule Rule, w http.ResponseWriter) boo
 // Fault injection happens here.
 // Log every request with valid reqID irrespective of fault injection
 // 此处发生故障注入。 不论是否有故障注入，使用有效的reqID记录每个请求。
-// 返回是否终止
-func (p *Proxy) executeRequestRule(reqID string, rule Rule, req *http.Request, body []byte, w http.ResponseWriter) bool {
+// 返回修改后请求体 和 是否中止
+func (p *Proxy) executeRequestRule(reqID string, rule Rule, req *http.Request,
+	body []byte, w http.ResponseWriter) ([]byte, bool) {
 
 	var actions []string
 	delay, errorCode, retVal := time.Duration(0), -2, true
@@ -425,9 +445,15 @@ func (p *Proxy) executeRequestRule(reqID string, rule Rule, req *http.Request, b
 			time.Sleep(rule.DelayTime)
 		}
 
+		// 注入修改
+		if drawAndDecide(rule.MangleDistribution, 1.0-rule.DelayProbability, rule.MangleProbability) {
+			globallog.Printf("executeRequestRule mangle")
+			body = rule.SearchReg.ReplaceAll(body, []byte(rule.ReplaceString))
+		}
+
 		// 注入中止
-		if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability, rule.AbortProbability) &&
-			p.doHTTPAborts(reqID, rule, w) {
+		if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability-rule.MangleProbability,
+			rule.AbortProbability) && p.doHTTPAborts(reqID, rule, w) {
 			globallog.Printf("executeRequestRule abort")
 			actions = append(actions, "abort")
 			errorCode = rule.ErrorCode
@@ -450,18 +476,20 @@ func (p *Proxy) executeRequestRule(reqID string, rule Rule, req *http.Request, b
 		"rule":           rule.ToConfig(),
 	}).Info("Request")
 
-	return retVal
+	return body, retVal
 }
 
 // Wrapper function around executeRule for the Response path
 //TODO: decide if we want to log body and header
-func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response, body []byte, after time.Duration, w http.ResponseWriter) bool {
+func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response,
+	body []byte, after time.Duration, w http.ResponseWriter) ([]byte, bool) {
 
 	var actions []string
 	delay, errorCode, retVal := time.Duration(0), -2, true
 	t := time.Now()
 
 	if rule.Enabled {
+		// 注入延迟
 		if drawAndDecide(rule.DelayDistribution, 1.0, rule.DelayProbability) {
 			globallog.Printf("executeResponseRule delay")
 			// In future, this could be dynamically computed -- variable delays
@@ -470,8 +498,15 @@ func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response
 			time.Sleep(rule.DelayTime)
 		}
 
-		if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability, rule.AbortProbability) &&
-			p.doHTTPAborts(reqID, rule, w) {
+		// 注入修改
+		if drawAndDecide(rule.MangleDistribution, 1.0-rule.DelayProbability, rule.MangleProbability) {
+			globallog.Printf("executeRequestRule mangle")
+			body = rule.SearchReg.ReplaceAll(body, []byte(rule.ReplaceString))
+		}
+
+		// 注入中断
+		if drawAndDecide(rule.AbortDistribution, 1.0-rule.DelayProbability-rule.MangleProbability,
+			rule.AbortProbability) && p.doHTTPAborts(reqID, rule, w) {
 			globallog.Printf("executeResponseRule abort")
 			actions = append(actions, "abort")
 			errorCode = rule.ErrorCode
@@ -496,7 +531,7 @@ func (p *Proxy) executeResponseRule(reqID string, rule Rule, resp *http.Response
 		"rule": rule.ToConfig(),
 	}).Info("Response")
 
-	return retVal
+	return body, retVal
 }
 
 // AddRule adds a new rule to the proxy. All requests/replies carrying the trackingheader will be checked
@@ -606,6 +641,33 @@ func decodeBody(raw []byte, ct string, ce string) ([]byte, error) {
 		}
 		result, err := ioutil.ReadAll(zr)
 		return result, err
+	}
+	return raw, nil
+}
+
+// 对于gzip和deflate压缩的原始数据压缩，其它不变
+func encodeBody(raw []byte, ct string, ce string) ([]byte, error) {
+	if str.Contains(ce, "gzip") {
+		buf := new(bytes.Buffer)
+		w := gzip.NewWriter(buf)
+		_, err := w.Write(raw)
+		if err != nil {
+			return []byte{}, err
+		}
+		err = w.Close()
+		if err != nil {
+			return []byte{}, err
+		}
+		return buf.Bytes(), nil
+	} else if str.Contains(ce, "deflate") {
+		buf := new(bytes.Buffer)
+		w := zlib.NewWriter(buf)
+		_, err := w.Write(raw)
+		err = w.Close()
+		if err != nil {
+			return []byte{}, err
+		}
+		return buf.Bytes(), nil
 	}
 	return raw, nil
 }

@@ -63,7 +63,7 @@ type Rule struct {
 
 	MangleProbability  float64
 	MangleDistribution ProbabilityDistribution
-	SearchString       string
+	SearchReg          *regexp.Regexp
 	ReplaceString      string
 
 	AbortProbability  float64
@@ -118,7 +118,7 @@ func NewRule(c config.RuleConfig) (r Rule, err error) {
 		DelayTime:         time.Duration(0), // default
 		MangleProbability: c.MangleProbability,
 		//MangleDistribution: 0,
-		SearchString:     c.SearchString,
+		//SearchReg: nil,
 		ReplaceString:    c.ReplaceString,
 		AbortProbability: c.AbortProbability,
 		//AbortDistribution:  0,
@@ -163,6 +163,9 @@ func NewRule(c config.RuleConfig) (r Rule, err error) {
 	if err != nil {
 		return NopRule, err
 	}
+	if r.SearchReg, err = regexp.Compile(c.SearchString); err != nil {
+		return NopRule, errors.New("SearchString error: " + err.Error())
+	}
 
 	r.AbortDistribution, err = getDistribution(c.AbortDistribution)
 	if err != nil {
@@ -187,7 +190,7 @@ func (r *Rule) ToConfig() config.RuleConfig {
 
 		MangleProbability:  r.MangleProbability,
 		MangleDistribution: distributionMap[r.MangleDistribution],
-		SearchString:       r.SearchString,
+		SearchString:       r.SearchReg.String(),
 		ReplaceString:      r.ReplaceString,
 
 		AbortProbability:  r.AbortProbability,
