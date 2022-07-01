@@ -47,33 +47,27 @@ var rMap = map[MessageType]string{
 
 // Rule is a universal type for all rules.
 type Rule struct {
-	Source string
-	Dest   string
-	MType  MessageType
+	Enabled bool
 
-	//Select only messages that match pattens specified in these fields
+	Source        string
+	Dest          string
+	MType         MessageType
 	BodyPattern   string
 	HeaderPattern string
 
-	// Probability float64
-	// Distribution string
-
 	// First delay, then mangle and then abort
-	// One could set the probabilities of these variables to 0/1 to toggle them on or off
-	// We effectively get 8 combinations but only few make sense.
-	DelayProbability   float64
-	DelayDistribution  ProbabilityDistribution
+	DelayProbability  float64
+	DelayDistribution ProbabilityDistribution
+	DelayTime         time.Duration
+
 	MangleProbability  float64
 	MangleDistribution ProbabilityDistribution
-	AbortProbability   float64
-	AbortDistribution  ProbabilityDistribution
+	SearchString       string
+	ReplaceString      string
 
-	//TestID       string
-	DelayTime     time.Duration
-	ErrorCode     int
-	SearchString  string
-	ReplaceString string
-	Enabled       bool
+	AbortProbability  float64
+	AbortDistribution ProbabilityDistribution
+	ErrorCode         int
 }
 
 // NopRule is a rule that does nothing. Useful default return value
@@ -174,27 +168,24 @@ func NewRule(c config.RuleConfig) (Rule, error) {
 
 // ToConfig 输出规则的可读版本 converts the rule into a human-readable string config.
 func (r *Rule) ToConfig() config.RuleConfig {
-	var c config.RuleConfig
+	return config.RuleConfig{
+		Source:        r.Source,
+		Dest:          r.Dest,
+		MType:         rMap[r.MType],
+		BodyPattern:   r.BodyPattern,
+		HeaderPattern: r.HeaderPattern,
 
-	c.Source = r.Source
-	c.Dest = r.Dest
-	c.MType = rMap[r.MType]
+		DelayProbability:  r.DelayProbability,
+		DelayDistribution: distributionMap[r.DelayDistribution],
+		DelayTime:         r.DelayTime.String(),
 
-	c.HeaderPattern = r.HeaderPattern
-	c.BodyPattern = r.BodyPattern
+		MangleProbability:  r.MangleProbability,
+		MangleDistribution: distributionMap[r.MangleDistribution],
+		SearchString:       r.SearchString,
+		ReplaceString:      r.ReplaceString,
 
-	c.DelayDistribution = distributionMap[r.DelayDistribution]
-	c.MangleDistribution = distributionMap[r.MangleDistribution]
-	c.AbortDistribution = distributionMap[r.AbortDistribution]
-
-	c.DelayProbability = r.DelayProbability
-	c.MangleProbability = r.MangleProbability
-	c.AbortProbability = r.AbortProbability
-
-	c.DelayTime = r.DelayTime.String()
-	c.ErrorCode = r.ErrorCode
-	c.SearchString = r.SearchString
-	c.ReplaceString = r.ReplaceString
-
-	return c
+		AbortProbability:  r.AbortProbability,
+		AbortDistribution: distributionMap[r.AbortDistribution],
+		ErrorCode:         r.ErrorCode,
+	}
 }

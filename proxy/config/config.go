@@ -49,26 +49,24 @@ type RouterConfig struct {
 // RuleConfig represents different rules
 // 表示不同的规则: 没有实现损坏
 type RuleConfig struct {
-	Source string `json:"source"`
-	Dest   string `json:"dest"`
-	MType  string `json:"messagetype"`
-
+	Source        string `json:"source"`
+	Dest          string `json:"dest"`
+	MType         string `json:"messagetype"`
 	BodyPattern   string `json:"bodypattern"`
 	HeaderPattern string `json:"headerpattern"`
-	// TestID       string   `json:"testid"`
 
-	DelayProbability   float64 `json:"delayprobability"` // 延迟概率
-	DelayDistribution  string  `json:"delaydistribution"`
+	DelayProbability  float64 `json:"delayprobability"` // 延迟概率
+	DelayDistribution string  `json:"delaydistribution"`
+	DelayTime         string  `json:"delaytime"`
+
 	MangleProbability  float64 `json:"mangleprobability"` // 损坏概率
 	MangleDistribution string  `json:"mangledistribution"`
-	AbortProbability   float64 `json:"abortprobability"` // 中止概率
-	AbortDistribution  string  `json:"abortdistribution"`
+	SearchString       string  `json:"searchstring"`
+	ReplaceString      string  `json:"replacestring"`
 
-	DelayTime string `json:"delaytime"`
-	//	Method       string  `json:"method"`
-	ErrorCode     int    `json:"errorcode"`
-	SearchString  string `json:"searchstring"`
-	ReplaceString string `json:"replacestring"`
+	AbortProbability  float64 `json:"abortprobability"` // 中止概率
+	AbortDistribution string  `json:"abortdistribution"`
+	ErrorCode         int     `json:"errorcode"`
 }
 
 // ReadConfig reads a config from disk
