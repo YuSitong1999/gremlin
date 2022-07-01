@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"proxy/config"
+	"regexp"
 	str "strings"
 	"time"
 )
@@ -49,11 +50,11 @@ var rMap = map[MessageType]string{
 type Rule struct {
 	Enabled bool
 
-	Source        string
-	Dest          string
-	MType         MessageType
-	BodyPattern   string
-	HeaderPattern string
+	Source    string
+	Dest      string
+	MType     MessageType
+	BodyReg   *regexp.Regexp
+	HeaderReg *regexp.Regexp
 
 	// First delay, then mangle and then abort
 	DelayProbability  float64
@@ -110,8 +111,8 @@ func NewRule(c config.RuleConfig) (r Rule, err error) {
 		Source:  c.Source,
 		Dest:    c.Dest,
 		//MType:              0,
-		BodyPattern:      c.BodyPattern,
-		HeaderPattern:    c.HeaderPattern,
+		//BodyReg:          nil,
+		//HeaderReg:        nil,
 		DelayProbability: c.DelayProbability,
 		//DelayDistribution:  0,
 		DelayTime:         time.Duration(0), // default
@@ -124,13 +125,12 @@ func NewRule(c config.RuleConfig) (r Rule, err error) {
 		ErrorCode: c.ErrorCode,
 	}
 
-	//sanity check
-	//at least header or body pattern must be non-empty
-	if r.HeaderPattern == "" {
-		return NopRule, errors.New("HeaderPattern cannot be empty (specify * instead)")
+	// check regexp
+	if r.HeaderReg, err = regexp.Compile(c.HeaderPattern); err != nil {
+		return NopRule, errors.New("HeaderPattern error: " + err.Error())
 	}
-	if r.BodyPattern == "" {
-		r.BodyPattern = "*"
+	if r.BodyReg, err = regexp.Compile(c.BodyPattern); err != nil {
+		return NopRule, errors.New("BodyPattern error: " + err.Error())
 	}
 
 	// 至少有一种故障
@@ -175,8 +175,8 @@ func (r *Rule) ToConfig() config.RuleConfig {
 		Source:        r.Source,
 		Dest:          r.Dest,
 		MType:         rMap[r.MType],
-		BodyPattern:   r.BodyPattern,
-		HeaderPattern: r.HeaderPattern,
+		BodyPattern:   r.BodyReg.String(),
+		HeaderPattern: r.HeaderReg.String(),
 
 		DelayProbability:  r.DelayProbability,
 		DelayDistribution: distributionMap[r.DelayDistribution],

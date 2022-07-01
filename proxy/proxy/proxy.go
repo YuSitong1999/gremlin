@@ -72,67 +72,15 @@ func NewProxy(serviceName string, conf config.ProxyConfig,
 func (p *Proxy) getRule(r MessageType, reqID string, data []byte) Rule {
 	p.ruleLock.RLock()
 	defer p.ruleLock.RUnlock()
-	// globallog.Debug("In getRule")
 	for counter, rule := range p.rules[r] {
-		globallog.WithField("ruleCounter", counter).Debug("Rule counter")
-		//  If request ID is empty, do not match unless wildcard rule
-		if reqID == "" {
-			if rule.HeaderPattern == "*" || rule.BodyPattern == "*" {
-				return rule
-			}
+		if !rule.HeaderReg.Match([]byte(reqID)) {
+			globallog.WithField("ruleCounter", counter).Debug("Id regex no match")
 			continue
 		}
-
-		// if requestID is a wildcard, pick up the first rule and return
-		if reqID == "*" {
-			return rule
+		if !rule.BodyReg.Match(data) {
+			globallog.WithField("ruleCounter", counter).Debug("Body regex no match")
+			continue
 		}
-
-		if rule.HeaderPattern == "*" && rule.BodyPattern == "*" {
-			return rule
-		}
-
-		if rule.HeaderPattern != "*" {
-			b, err := regexp.Match(rule.HeaderPattern, []byte(reqID))
-			if err != nil {
-				globallog.WithFields(logrus.Fields{
-					"reqID":         reqID,
-					"errmsg":        err.Error(),
-					"headerpattern": rule.HeaderPattern,
-				}).Error("Rule request ID matching error")
-				continue
-			}
-			if !b {
-				globallog.Debug("Id regex no match")
-				continue
-			}
-			//globallog.WithField("ruleCounter", rule.ToConfig()).Debug("Id regex match")
-		}
-
-		if data == nil {
-			// No match if body pattern is empty, but match if rule pattern is empty or this is a special pattern
-			if rule.BodyPattern != "*" {
-				continue
-			}
-		} else {
-			if rule.BodyPattern != "*" {
-				globallog.WithField("ruleCounter", counter).Debug("Body pattern !*")
-				b, err := regexp.Match(rule.BodyPattern, data)
-				if err != nil {
-					globallog.WithFields(logrus.Fields{
-						"reqID":       reqID,
-						"errmsg":      err.Error(),
-						"bodypattern": rule.BodyPattern,
-					}).Error("Rule body matching error")
-					continue
-				}
-				if !b {
-					globallog.Debug("Body regex no match")
-					continue
-				}
-			}
-		}
-		//globallog.WithField("returning rule ", rule.ToConfig()).Debug("Id regex match")
 		return rule
 	}
 	return NopRule
