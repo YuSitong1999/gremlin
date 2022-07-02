@@ -1,5 +1,7 @@
 # Gremlin Python SDK
 
+[配置说明](./CONFIG.md)
+
 ## application graph
 
 维护微服务信息（名字和故障注入代理地址）和依赖关系。
