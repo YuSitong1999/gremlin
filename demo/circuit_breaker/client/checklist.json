@@ -1,0 +1,14 @@
+{
+  "log_server": "http://localhost:29200/",
+  "checks": [
+    {
+      "name": "circuit_breaker",
+      "source": "productpage",
+      "dest": "reviews",
+      "reset_time": "10s",
+      "closed_attempts": 3,
+      "halfopen_attempts": 1,
+      "headerprefix": "testUser-circuit"
+    }
+  ]
+}
