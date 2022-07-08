@@ -40,26 +40,29 @@ class Rule(object):
         self.abortdistribution = abortdistribution
         self.errorcode = errorcode
 
+    def to_dict(self) -> dict[str: any]:
+        return {"source": self.source,
+                "dest": self.dest,
+                "messagetype": self.messagetype,
+                "headerpattern": self.headerpattern,
+                "bodypattern": self.bodypattern,
+
+                "delayprobability": self.delayprobability,
+                "delaydistribution": self.delaydistribution,
+                "delaytime": self.delaytime,
+
+                "mangleprobability": self.mangleprobability,
+                "mangledistribution": self.mangledistribution,
+                "searchstring": self.searchstring,
+                "replacestring": self.replacestring,
+
+                "abortprobability": self.abortprobability,
+                "abortdistribution": self.abortdistribution,
+                "errorcode": self.errorcode
+                }
+
     def __str__(self) -> str:
-        return str({"source": self.source,
-                    "dest": self.dest,
-                    "messagetype": self.messagetype,
-                    "headerpattern": self.headerpattern,
-                    "bodypattern": self.bodypattern,
-
-                    "delayprobability": self.delayprobability,
-                    "delaydistribution": self.delaydistribution,
-                    "delaytime": self.delaytime,
-
-                    "mangleprobability": self.mangleprobability,
-                    "mangledistribution": self.mangledistribution,
-                    "searchstring": self.searchstring,
-                    "replacestring": self.replacestring,
-
-                    "abortprobability": self.abortprobability,
-                    "abortdistribution": self.abortdistribution,
-                    "errorcode": self.errorcode
-                    })
+        return str(self.to_dict())
 
 
 class FailureGenerator(object):
@@ -160,7 +163,7 @@ class FailureGenerator(object):
                 try:
                     resp = requests.post("http://{}/gremlin/v1/rules/add".format(instance),
                                          headers={"Content-Type": "application/json"},
-                                         data=json.dumps(rule))
+                                         data=json.dumps(rule.to_dict()))
                     resp.raise_for_status()
                 except requests.exceptions.ConnectionError as e:
                     print("FAILURE: Could not add rule to instance %s of service %s" % (instance, rule["source"]))
