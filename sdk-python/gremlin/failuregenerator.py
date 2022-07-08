@@ -264,7 +264,7 @@ class FailureGenerator(object):
             abortdistribution: str = args.pop('abortdistribution', 'uniform')
             assert isinstance(abortdistribution, str) and abortdistribution in ['uniform', 'exponential', 'normal']
             errorcode: int = args['errorcode']
-            assert isinstance(errorcode, str) and errorcode != 0
+            assert isinstance(errorcode, int) and errorcode != 0
 
         assert delayprobability + mangleprobability + abortprobability <= 1.0
 
